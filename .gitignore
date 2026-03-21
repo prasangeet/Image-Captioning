@@ -11,5 +11,10 @@ wheels/
 
 # Dataset
 Flickr8k
+COCO
 features/
 *.npy
+
+# Models
+checkpoints
+

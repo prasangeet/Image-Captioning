@@ -9,7 +9,7 @@ class PreprocessingPipeline:
     def __init__(
         self,
         base_path="Flickr8k/flickr8k",
-        batch_size=32,
+        batch_size=16,
         max_len=40
     ):
         self.base_path = base_path
@@ -41,7 +41,7 @@ class PreprocessingPipeline:
     # =========================
     # TRAIN-VAL SPLIT (IMAGE LEVEL)
     # =========================
-    def train_val_split(self, val_ratio=0.1, seed=42):
+    def train_val_split(self, val_ratio=0.2, seed=42):
 
         random.seed(seed)
 
@@ -81,9 +81,12 @@ class PreprocessingPipeline:
     # TOKENIZER (FREQ FILTER)
     # =========================
     def build_tokenizer(self, captions, min_freq=5):
+        # Keep < and > so special tokens are preserved
+        custom_filters = '!"#$%&()*+,-./:;=?@[\\]^_`{|}~\t\n'  # removed < and >
 
         temp_tokenizer = tf.keras.preprocessing.text.Tokenizer(
-            oov_token="<unk>"
+            oov_token="<unk>",
+            filters=custom_filters
         )
         temp_tokenizer.fit_on_texts(captions)
 
@@ -97,10 +100,10 @@ class PreprocessingPipeline:
         print(f"[INFO] Vocab size (filtered): {len(self.vocab)}")
 
         tokenizer = tf.keras.preprocessing.text.Tokenizer(
-            oov_token="<unk>"
+            oov_token="<unk>",
+            filters=custom_filters  # same filters here too
         )
         tokenizer.fit_on_texts(captions)
-
         self.tokenizer = tokenizer
 
     # =========================
@@ -137,39 +140,44 @@ class PreprocessingPipeline:
     # =========================
     # LOAD FEATURE (.npy)
     # =========================
+    
     def load_feature(self, path):
 
-        def _load(path_str):
-            return np.load(path_str.decode("utf-8"))
+        @tf.autograph.experimental.do_not_convert
+        def _load(path_bytes):
+            # AutoGraph is disabled — plain Python executes as-is
+            if isinstance(path_bytes, bytes):
+                path_str = path_bytes.decode('utf-8')
+            elif hasattr(path_bytes, 'numpy'):
+                path_str = path_bytes.numpy().decode('utf-8')
+            else:
+                path_str = str(path_bytes)
 
-        feature = tf.numpy_function(
-            _load,
-            [path],
-            tf.float32
-        )
+            if not os.path.isabs(path_str) and not os.path.exists(path_str):
+                path_str = os.path.join('features', path_str)
 
-        feature.set_shape((49, 256))  # IMPORTANT
+            return np.load(path_str).astype(np.float32)
 
+        feature = tf.numpy_function(_load, [path], tf.float32)
+        feature.set_shape((64, 256))
         return feature
+
+
 
     # =========================
     # DATASET (FEATURE-BASED)
     # =========================
     def create_dataset(self, feature_paths, sequences):
+    # dtype=object → TF passes byte strings into numpy_function
+        feature_paths = np.array(feature_paths, dtype=object)
 
-        dataset = tf.data.Dataset.from_tensor_slices(
-            (feature_paths, sequences)
-        )
+        dataset = tf.data.Dataset.from_tensor_slices((feature_paths, sequences))
 
         def process(path, seq):
             feature = self.load_feature(path)
             return feature, seq
 
-        dataset = dataset.map(
-            process,
-            num_parallel_calls=tf.data.AUTOTUNE
-        )
-
+        dataset = dataset.map(process, num_parallel_calls=tf.data.AUTOTUNE)
         dataset = dataset.shuffle(1000)
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)

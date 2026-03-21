@@ -21,8 +21,8 @@ for path in tqdm(image_paths):
 
     img = tf.io.read_file(full_path)
     img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, (224, 224))
-    img = tf.keras.applications.resnet50.preprocess_input(img)
+    img = tf.image.resize(img, (299, 299))
+    img = tf.keras.applications.inception_v3.preprocess_input(img)
 
     img = tf.expand_dims(img, 0)
 
@@ -30,4 +30,4 @@ for path in tqdm(image_paths):
     feature = tf.squeeze(feature, axis=0).numpy()
 
     filename = path.replace(".jpg", ".npy")
-    np.save(os.path.join(save_dir, filename), filename)
+    np.save(os.path.join(save_dir, filename), feature)
