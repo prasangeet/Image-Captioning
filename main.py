@@ -29,7 +29,7 @@ def main():
     num_layers = 2
     num_heads = 4
     dff = 512
-    dropout = 0.1
+    dropout = 0.4
     lr = 3e-4
     alpha_lr_schedule = 1e-6
     label_smoothing = 0.0

@@ -20,10 +20,10 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
         self.dropout_rate = dropout
 
         self.self_attn = tf.keras.layers.MultiHeadAttention(
-            num_heads=num_heads, key_dim=d_model
+            num_heads=num_heads, key_dim=d_model // num_heads
         )
         self.cross_attn = tf.keras.layers.MultiHeadAttention(
-            num_heads=num_heads, key_dim=d_model
+            num_heads=num_heads, key_dim=d_model // num_heads
         )
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(dff, activation='relu'),

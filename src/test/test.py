@@ -63,7 +63,7 @@ def main():
     encoder(tf.zeros((1, 224, 224, 3)), training=False)
 
     decoder = tf.keras.models.load_model(
-        "checkpoints/decoder_epoch_6.keras",
+        "checkpoints/decoder_epoch_2.keras",
         custom_objects={
             "TransformerDecoder": TransformerDecoder,
             "TransformerDecoderLayer": TransformerDecoderLayer
